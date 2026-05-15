@@ -2,6 +2,8 @@
 
 A custom Claude Code status line that shows your current model, working folder, git branch, rate-limit usage, and context window pressure.
 
+![ccstatusline preview](assets/preview.png)
+
 ## What It Shows
 
 **Line 1** — model, folder, branch:
