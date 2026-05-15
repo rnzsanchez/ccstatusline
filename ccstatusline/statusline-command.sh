@@ -5,7 +5,7 @@
 
 input=$(cat)
 
-# ===== Colors (vfmatzkin RGB palette) =====
+# ── Colors ───────────────────────────────────────────────────────────────────
 blue='\033[38;2;97;175;239m'
 amber='\033[38;2;229;192;123m'
 cyan='\033[38;2;86;182;194m'
@@ -18,7 +18,7 @@ reset='\033[0m'
 
 SEP=" ${dim}•${reset} "
 
-# ===== Helpers =====
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 # Accepts Unix epoch integer or ISO 8601 string
 to_epoch() {
@@ -44,7 +44,7 @@ compute_delta() {
   else echo "${minutes}m"; fi
 }
 
-# ===== Extract data =====
+# ── Extract data ─────────────────────────────────────────────────────────────
 model=$(echo "$input" | jq -r '.model.display_name // ""')
 dir=$(echo "$input"   | jq -r '.workspace.current_dir // .cwd // ""')
 used=$(echo "$input"  | jq -r '.context_window.used_percentage // empty')
@@ -55,7 +55,7 @@ model="${model/ context/}"
 
 dir_name=$(basename "$dir")
 
-# ===== Usage cache =====
+# ── Usage cache ───────────────────────────────────────────────────────────────
 CACHE_FILE="/tmp/.claude_usage_cache"
 five_h="" seven_d="" five_h_reset="" seven_d_reset=""
 if [ -f "$CACHE_FILE" ]; then
@@ -77,14 +77,14 @@ fi
 five_h_reset=$(to_epoch "$five_h_reset")
 seven_d_reset=$(to_epoch "$seven_d_reset")
 
-# ===== Git branch =====
+# ── Git branch ───────────────────────────────────────────────────────────────
 branch=""
 if [ -n "$dir" ]; then
   branch=$(git -C "$dir" --no-optional-locks symbolic-ref --short HEAD 2>/dev/null || \
            git -C "$dir" --no-optional-locks rev-parse --short HEAD 2>/dev/null)
 fi
 
-# ===== Line 1: model | folder • branch =====
+# ── Line 1: model | folder • branch ──────────────────────────────────────────
 model_color="$blue"
 case "$model" in *Opus*) model_color="$amber" ;; *Haiku*) model_color="$cyan" ;; esac
 
@@ -95,7 +95,7 @@ line1+="${cyan}${dir_name}${reset}"
 
 printf "%b\n" "$line1"
 
-# ===== Line 2: 5h • 7d | ctx =====
+# ── Line 2: 5h • 7d | ctx ────────────────────────────────────────────────────
 line2=""
 
 if [ -n "$five_h" ]; then
