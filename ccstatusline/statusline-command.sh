@@ -93,6 +93,23 @@ line1+=" ${dim}|${reset} "
 line1+="${cyan}${dir_name}${reset}"
 [ -n "$branch" ] && line1+="${SEP}${magenta}${branch}${reset}"
 
+# ── Plugin badges (dynamic) ──────────────────────────────────────────────────
+# Each installed plugin may ship a `*-statusline.sh`. We run it and append its
+# output verbatim, so the badge looks exactly how that plugin's author intended
+# (its own colors, its own gating — it prints nothing when inactive). No plugin
+# names or colors live here; installing a badge-capable plugin makes its badge
+# appear with zero edits to this file.
+PLUGIN_REGISTRY="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json"
+if [ -f "$PLUGIN_REGISTRY" ] && command -v jq >/dev/null 2>&1; then
+  while IFS= read -r plugin_path; do
+    [ -d "$plugin_path" ] || continue
+    sl_script=$(find "$plugin_path" -maxdepth 4 -type f -name '*-statusline.sh' 2>/dev/null | head -1)
+    [ -n "$sl_script" ] || continue
+    badge_out=$(bash "$sl_script" </dev/null 2>/dev/null)
+    [ -n "$badge_out" ] && line1+="${SEP}${badge_out}"
+  done < <(jq -r '.plugins | to_entries | sort_by(.key)[] | .value[-1].installPath // empty' "$PLUGIN_REGISTRY" 2>/dev/null)
+fi
+
 printf "%b\n" "$line1"
 
 # ── Line 2: 5h • 7d | ctx ────────────────────────────────────────────────────
