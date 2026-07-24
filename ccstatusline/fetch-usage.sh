@@ -8,8 +8,17 @@
 
 # ── Config ────────────────────────────────────────────────────────────────────
 CACHE_FILE="/tmp/.claude_usage_cache"
+CACHE_TTL=45  # seconds; this hook fires on every tool call, so skip refetching too often
 TOKEN_CACHE="/tmp/.claude_token_cache"
 TOKEN_TTL=900  # 15 minutes
+
+# ── Usage cache ───────────────────────────────────────────────────────────────
+if [ -f "$CACHE_FILE" ]; then
+  cache_age=$(( $(date -u +%s) - $(stat -f %m "$CACHE_FILE" 2>/dev/null || echo 0) ))
+  if [ "$cache_age" -lt "$CACHE_TTL" ]; then
+    exit 0
+  fi
+fi
 
 # ── Token ─────────────────────────────────────────────────────────────────────
 token=""
