@@ -6,10 +6,12 @@ A custom Claude Code status line that shows your current model, working folder, 
 
 ## What It Shows
 
-**Line 1** — model, folder, branch:
+**Line 1** — model, effort, account, folder, branch, worktree, PR, session name:
 ```
-Sonnet 4.6  |  myproject  •  main
+Sonnet 4.6 high work  |  myproject  •  main  •  wt my-feature  •  #42 approved  •  my-session
 ```
+
+Each of effort, account, worktree, PR, and session name appears only when present. The account label shows when `CLAUDE_CONFIG_DIR` is set to something other than `.claude` (`.claude-work` becomes `work`). The PR is a clickable link in terminals that support OSC 8. Rate limits are shared across sessions of the same account: the newest values seen by any session are cached in `$TMPDIR/ccstatusline` and shown by all of them. Context tokens use `context_window.total_input_tokens`, matching the percentage.
 
 **Line 2** — rate limits and context usage:
 ```
@@ -32,10 +34,8 @@ The status line discovers badges dynamically from `~/.claude/plugins/installed_p
 
 ## Prerequisites
 
-- **macOS** — `fetch-usage.sh` uses the macOS Keychain (`security` command) to read your Claude OAuth token
-- **Claude Code** — installs its OAuth credentials into the Keychain on first login
+- **Claude Code** — a claude.ai Pro or Max subscription; rate limits come from the status line input
 - **jq** — `brew install jq`
-- **curl** — included on macOS
 - **python3** — included on macOS 12+; otherwise `brew install python3`
 - **git** — Xcode CLT or `brew install git`
 
@@ -55,7 +55,6 @@ Then restart Claude Code.
    ```bash
    mkdir -p ~/.claude/ccstatusline
    cp ccstatusline/statusline-command.sh ~/.claude/ccstatusline/
-   cp ccstatusline/fetch-usage.sh ~/.claude/ccstatusline/
    chmod +x ~/.claude/ccstatusline/*.sh
    ```
 
@@ -71,10 +70,6 @@ Then restart Claude Code.
          {
            "matcher": "WebSearch|WebFetch",
            "hooks": [{"type": "command", "command": "echo \"Current date/time: $(date '+%Y-%m-%d %H:%M:%S %Z')\""}]
-         },
-         {
-           "matcher": "",
-           "hooks": [{"type": "command", "command": "bash ~/.claude/ccstatusline/fetch-usage.sh > /dev/null 2>&1 &"}]
          }
        ]
      }
@@ -85,7 +80,7 @@ Then restart Claude Code.
 
 ## Configuration Notes
 
-**Rate-limit data** — `fetch-usage.sh` reads your OAuth access token from the macOS Keychain entry named `Claude Code-credentials`, which is populated automatically when you sign in to Claude Code. Results are cached at `/tmp/.claude_usage_cache` for 15 minutes, so the displayed percentages update at that cadence.
+**Rate-limit data** — read from the `rate_limits` field Claude Code passes to the status line on stdin, so each account (each `CLAUDE_CONFIG_DIR`) shows its own usage. The field appears only for claude.ai Pro and Max subscribers, after the first API response in a session.
 
 ## Uninstall
 
