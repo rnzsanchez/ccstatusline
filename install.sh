@@ -24,10 +24,8 @@ echo ""
 echo "Checking dependencies..."
 check_dep bash     "(already running)"
 check_dep jq       "brew install jq"
-check_dep curl     "included on macOS"
 check_dep python3  "brew install python3 or Xcode CLT"
 check_dep git      "brew install git"
-check_dep security "macOS Keychain — required for rate-limit display"
 
 if [ "$MISSING" -eq 1 ]; then
   echo ""
@@ -49,7 +47,6 @@ install_script() {
 }
 
 install_script "$SCRIPT_DIR/ccstatusline/statusline-command.sh" "$INSTALL_DIR/statusline-command.sh"
-install_script "$SCRIPT_DIR/ccstatusline/fetch-usage.sh"        "$INSTALL_DIR/fetch-usage.sh"
 
 # ── Merge settings.json ───────────────────────────────────────────────────────
 echo ""
@@ -70,11 +67,6 @@ WANTED_PRE_TOOL_USE = [
         "matcher": "WebSearch|WebFetch",
         "hooks": [{"type": "command",
                    "command": "echo \"Current date/time: $(date '+%Y-%m-%d %H:%M:%S %Z')\""}]
-    },
-    {
-        "matcher": "",
-        "hooks": [{"type": "command",
-                   "command": "bash ~/.claude/ccstatusline/fetch-usage.sh > /dev/null 2>&1 &"}]
     }
 ]
 
