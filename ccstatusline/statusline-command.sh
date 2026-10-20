@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Claude Code status line
-# Line 1: model | folder • branch
+# Line 1: model effort account | folder • branch • worktree • PR • session
 # Line 2: 5h X% (time_left) • 7d X% (time_left) | ctx X% (tokens)
 
 input=$(cat)
@@ -20,19 +20,10 @@ SEP=" ${dim}•${reset} "
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-# Accepts Unix epoch integer or ISO 8601 string
-to_epoch() {
-  local raw="$1"
-  [ -z "$raw" ] && return
-  [[ "$raw" =~ ^[0-9]+$ ]] && echo "$raw" && return
-  local clean
-  clean=$(echo "$raw" | sed 's/\.[0-9]*//' | sed 's/[+-][0-9][0-9]:[0-9][0-9]$//' | sed 's/Z$//')
-  TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%S" "$clean" "+%s" 2>/dev/null
-}
-
+# Takes a Unix epoch (seconds)
 compute_delta() {
   local epoch="$1"
-  [ -z "$epoch" ] && return
+  [[ "$epoch" =~ ^[0-9]+$ ]] || return
   local diff days hours minutes
   diff=$(( epoch - $(date -u "+%s") ))
   [ "$diff" -le 0 ] && echo "now" && return
@@ -45,9 +36,16 @@ compute_delta() {
 }
 
 # ── Extract data ─────────────────────────────────────────────────────────────
-model=$(echo "$input" | jq -r '.model.display_name // ""')
-dir=$(echo "$input"   | jq -r '.workspace.current_dir // .cwd // ""')
-used=$(echo "$input"  | jq -r '.context_window.used_percentage // empty')
+# One jq call; \x1f (not whitespace) keeps empty fields from collapsing in `read`
+IFS=$'\x1f' read -r model dir used ctx_used ctx_total five_h seven_d five_h_reset seven_d_reset \
+  sid session effort pr_num pr_url pr_state wt_name wt_git < <(jq -r '[
+  .model.display_name, (.workspace.current_dir // .cwd), .context_window.used_percentage,
+  .context_window.total_input_tokens, .context_window.context_window_size,
+  .rate_limits.five_hour.used_percentage, .rate_limits.seven_day.used_percentage,
+  .rate_limits.five_hour.resets_at, .rate_limits.seven_day.resets_at,
+  .session_id, .session_name, .effort.level, .pr.number, .pr.url, .pr.review_state,
+  .worktree.name, .workspace.git_worktree
+] | map((. // "") | tostring | gsub("[\\n\\t\u001f]"; " ")) | join("\u001f")' <<< "$input")
 
 # Strip "Claude " prefix and " context" suffix
 model="${model#Claude }"
@@ -55,27 +53,34 @@ model="${model/ context/}"
 
 dir_name=$(basename "$dir")
 
-# ── Usage cache ───────────────────────────────────────────────────────────────
-CACHE_FILE="/tmp/.claude_usage_cache"
-five_h="" seven_d="" five_h_reset="" seven_d_reset=""
-if [ -f "$CACHE_FILE" ]; then
-  five_h=$(sed -n '1p' "$CACHE_FILE")
-  seven_d=$(sed -n '2p' "$CACHE_FILE")
-  five_h_reset=$(sed -n '3p' "$CACHE_FILE")
-  seven_d_reset=$(sed -n '4p' "$CACHE_FILE")
-else
-  bash ~/.claude/ccstatusline/fetch-usage.sh > /dev/null 2>&1 &
+# Account key from the config dir; label shown only for non-default (.claude-work -> work)
+acct_key=$(basename "${CLAUDE_CONFIG_DIR:-$HOME/.claude}")
+acct=""
+if [ "$acct_key" != ".claude" ]; then acct="${acct_key#.claude-}"; acct="${acct#.}"; fi
+
+# ── Shared usage: sessions of one account show the newest rate_limits ─────────
+# stdin rate_limits only update after a session's own API response. Fields that
+# changed since this session last saw them are fresh and go to a per-account file.
+# Cache lives in TMPDIR, never under the config dir (it is symlinked across accounts).
+if [ -n "$sid" ]; then
+  cache="${TMPDIR:-/tmp}/ccstatusline"
+  mkdir -p -m 700 "$cache" 2>/dev/null
+  seen="$cache/seen-$acct_key-$sid"
+  usage="$cache/usage-$acct_key"
+  now=$(date -u "+%s")
+  rl="$five_h|$seven_d|$five_h_reset|$seven_d_reset"
+  prev_rl=""
+  [ -f "$seen" ] && read -r prev_rl < "$seen"
+  if [ "$rl" != "|||" ] && [ "$rl" != "$prev_rl" ]; then
+    echo "$rl" > "$seen"
+    echo "$now|$rl" > "$usage.$$" && mv "$usage.$$" "$usage"
+  fi
+  [ -f "$usage" ] && IFS='|' read -r _ five_h seven_d five_h_reset seven_d_reset < "$usage"
+  [ "${five_h_reset:-$now}" -le "$now" ] 2>/dev/null && five_h="" five_h_reset=""
+  [ "${seven_d_reset:-$now}" -le "$now" ] 2>/dev/null && seven_d="" seven_d_reset=""
+  touch "$seen" 2>/dev/null
+  find "$cache" -name 'seen-*' -mtime +1 -delete 2>/dev/null
 fi
-
-# Fall back to rate_limits in JSON
-[ -z "$five_h" ]        && five_h=$(echo "$input"        | jq -r '.rate_limits.five_hour.used_percentage // empty')
-[ -z "$seven_d" ]       && seven_d=$(echo "$input"       | jq -r '.rate_limits.seven_day.used_percentage // empty')
-[ -z "$five_h_reset" ]  && five_h_reset=$(echo "$input"  | jq -r '.rate_limits.five_hour.resets_at // empty')
-[ -z "$seven_d_reset" ] && seven_d_reset=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty')
-
-# Normalise to epoch integers
-five_h_reset=$(to_epoch "$five_h_reset")
-seven_d_reset=$(to_epoch "$seven_d_reset")
 
 # ── Git branch ───────────────────────────────────────────────────────────────
 branch=""
@@ -84,14 +89,24 @@ if [ -n "$dir" ]; then
            git -C "$dir" --no-optional-locks rev-parse --short HEAD 2>/dev/null)
 fi
 
-# ── Line 1: model | folder • branch ──────────────────────────────────────────
+# ── Line 1: model effort account | folder • branch • worktree • PR • session ─
 model_color="$blue"
 case "$model" in *Opus*) model_color="$amber" ;; *Haiku*) model_color="$cyan" ;; esac
 
 line1="${model_color}${model}${reset}"
+[ -n "$effort" ] && line1+=" ${dim}${effort}${reset}"
+[ -n "$acct" ] && line1+=" ${orange}${acct}${reset}"
 line1+=" ${dim}|${reset} "
 line1+="${cyan}${dir_name}${reset}"
 [ -n "$branch" ] && line1+="${SEP}${magenta}${branch}${reset}"
+wt="${wt_name:-$wt_git}"
+[ -n "$wt" ] && line1+="${SEP}${dim}wt${reset} ${cyan}${wt}${reset}"
+if [ -n "$pr_num" ]; then
+  pr_seg="#${pr_num}${pr_state:+ $pr_state}"
+  [ -n "$pr_url" ] && pr_seg=$(printf '\033]8;;%s\a%s\033]8;;\a' "$pr_url" "$pr_seg")
+  line1+="${SEP}${amber}${pr_seg}${reset}"
+fi
+[ -n "$session" ] && line1+="${SEP}${dim}${session}${reset}"
 
 # ── Plugin badges (dynamic) ──────────────────────────────────────────────────
 # Each installed plugin may ship a `*-statusline.sh`. We run it and append its
@@ -146,20 +161,14 @@ if [ -n "$used" ]; then
   elif [ "$ctx_pct" -ge 50 ]; then ctx_color="$orange"
   else ctx_color="$cyan"; fi
 
-  ctx_used=$(echo "$input" | jq -r '(
-    (.context_window.current_usage.cache_read_input_tokens   // 0) +
-    (.context_window.current_usage.cache_creation_input_tokens // 0) +
-    (.context_window.current_usage.input_tokens              // 0) +
-    (.context_window.current_usage.output_tokens             // 0)
-  )' 2>/dev/null)
-  ctx_total=$(echo "$input" | jq -r '.context_window.context_window_size // empty' 2>/dev/null)
-
   ctx_seg="${dim}ctx${reset} ${ctx_color}${ctx_pct}%${reset}"
-  if [ -n "$ctx_used" ] && [ -n "$ctx_total" ] && [ "$ctx_total" -gt 0 ] 2>/dev/null; then
+  if [[ "$ctx_used" =~ ^[0-9]+$ && "$ctx_total" =~ ^[0-9]+$ ]] && [ "$ctx_total" -gt 0 ]; then
     ctx_seg+=" ${dim}($(( ctx_used / 1000 ))k/$(( ctx_total / 1000 ))k)${reset}"
   fi
 
   [ -n "$line2" ] && line2+=" ${dim}|${reset} ${ctx_seg}" || line2="${ctx_seg}"
 fi
 
-[ -n "$line2" ] && printf "%b\n" "$line2"
+if [ -n "$line2" ]; then
+  printf "%b\n" "$line2"
+fi
