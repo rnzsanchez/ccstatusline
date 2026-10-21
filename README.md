@@ -13,6 +13,8 @@ Sonnet 4.6 high work  |  myproject  •  main  •  wt my-feature  •  #42 appr
 
 Each of effort, account, worktree, PR, and session name appears only when present. The account label shows when `CLAUDE_CONFIG_DIR` is set to something other than `.claude` (`.claude-work` becomes `work`). The PR is a clickable link in terminals that support OSC 8. Rate limits are shared across sessions of the same account: the newest values seen by any session are cached in `$TMPDIR/ccstatusline` and shown by all of them. Context tokens use `context_window.total_input_tokens`, matching the percentage.
 
+**Worktrees** — folder and branch come from the session's working directory (`workspace.current_dir`), so they follow `claude --worktree`, the EnterWorktree tool, and sessions started inside a linked worktree. The `wt` segment shows `worktree.name` or, failing that, `workspace.git_worktree`. A Bash `cd` into a folder outside the project is reset after each command, so the status line keeps showing the project folder. To make a `cd` into sibling worktrees stick, add their parent folder to `permissions.additionalDirectories` in settings (or use `/add-dir`).
+
 **Line 2** — rate limits and context usage:
 ```
 5h 34% (3h 22m)  •  7d 12% (5d 8h)  |  ctx 41% (82k/200k)
