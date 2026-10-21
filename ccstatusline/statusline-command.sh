@@ -38,20 +38,20 @@ compute_delta() {
 # ── Extract data ─────────────────────────────────────────────────────────────
 # One jq call; \x1f (not whitespace) keeps empty fields from collapsing in `read`
 IFS=$'\x1f' read -r model dir used ctx_used ctx_total five_h seven_d five_h_reset seven_d_reset \
-  sid session effort pr_num pr_url pr_state wt_name wt_git < <(jq -r '[
+  sid session effort pr_num pr_url pr_state wt_name wt_git project_dir < <(jq -r '[
   .model.display_name, (.workspace.current_dir // .cwd), .context_window.used_percentage,
   .context_window.total_input_tokens, .context_window.context_window_size,
   .rate_limits.five_hour.used_percentage, .rate_limits.seven_day.used_percentage,
   .rate_limits.five_hour.resets_at, .rate_limits.seven_day.resets_at,
   .session_id, .session_name, .effort.level, .pr.number, .pr.url, .pr.review_state,
-  .worktree.name, .workspace.git_worktree
+  .worktree.name, .workspace.git_worktree, .workspace.project_dir
 ] | map((. // "") | tostring | gsub("[\\n\\t\u001f]"; " ")) | join("\u001f")' <<< "$input")
 
 # Strip "Claude " prefix and " context" suffix
 model="${model#Claude }"
 model="${model/ context/}"
 
-dir_name=$(basename "$dir")
+dir_name=$(basename "${project_dir:-$dir}")
 
 # Account key from the config dir; label shown only for non-default (.claude-work -> work)
 acct_key=$(basename "${CLAUDE_CONFIG_DIR:-$HOME/.claude}")
@@ -100,7 +100,7 @@ line1+=" ${dim}|${reset} "
 line1+="${cyan}${dir_name}${reset}"
 [ -n "$branch" ] && line1+="${SEP}${magenta}${branch}${reset}"
 wt="${wt_name:-$wt_git}"
-[ -n "$wt" ] && line1+="${SEP}${dim}wt${reset} ${cyan}${wt}${reset}"
+[ -n "$wt" ] && [ "$wt" != "$dir_name" ] && line1+="${SEP}${dim}wt${reset} ${cyan}${wt}${reset}"
 if [ -n "$pr_num" ]; then
   pr_seg="#${pr_num}${pr_state:+ $pr_state}"
   [ -n "$pr_url" ] && pr_seg=$(printf '\033]8;;%s\a%s\033]8;;\a' "$pr_url" "$pr_seg")
