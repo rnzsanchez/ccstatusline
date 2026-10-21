@@ -26,10 +26,10 @@ Color coding:
 
 ## Plugin Badges
 
-Line 1 also renders badges from installed Claude Code plugins. Any plugin that ships a `*-statusline.sh` hook has its output appended verbatim after the branch:
+Line 1 also renders badges from installed Claude Code plugins. Any plugin that ships a `*-statusline.sh` hook has its output appended verbatim at the end of the line, after the session name:
 
 ```
-Opus 4.8  |  myproject  •  main  •  [CAVEMAN:ULTRA]  •  [PONYTAIL]
+Opus 4.8  |  myproject  •  main  •  my-session  •  [CAVEMAN:ULTRA]  •  [PONYTAIL]
 ```
 
 The status line discovers badges dynamically from `~/.claude/plugins/installed_plugins.json` — no plugin names or colors are hardcoded. Each badge keeps its author's own colors and gating (a plugin prints nothing when inactive), so installing a badge-capable plugin makes its badge appear with zero edits to the script. Badges render in alphabetical order by plugin name.
