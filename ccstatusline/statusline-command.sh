@@ -51,7 +51,7 @@ IFS=$'\x1f' read -r model dir used ctx_used ctx_total five_h seven_d five_h_rese
 model="${model#Claude }"
 model="${model/ context/}"
 
-dir_name=$(basename "${project_dir:-$dir}")
+dir_name=$(basename "${dir:-$project_dir}")
 
 # Account key from the config dir; label shown only for non-default (.claude-work -> work)
 acct_key=$(basename "${CLAUDE_CONFIG_DIR:-$HOME/.claude}")
