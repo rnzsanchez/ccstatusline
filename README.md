@@ -15,6 +15,8 @@ Each of effort, account, worktree, PR, and session name appears only when presen
 
 **Worktrees** — the folder and the branch both come from the current working directory (`workspace.current_dir`, falling back to `workspace.project_dir`), so they follow a Bash `cd`, `claude --worktree`, the EnterWorktree tool, and a move into a linked worktree. The `wt` segment shows `worktree.name` or, failing that, `workspace.git_worktree`, and is hidden when it matches the folder name, so a session started inside a worktree shows that name once. A Bash `cd` into a folder outside the project is reset after each command, so the status line keeps showing the project folder. To make a `cd` into sibling worktrees stick, add their parent folder to `permissions.additionalDirectories` in settings (or use `/add-dir`).
 
+**Herdr tabs** — inside a Herdr terminal, the session name (set with `/rename`) also becomes the name of the Herdr tab that holds it, at the next status line refresh. It needs `herdr-app` on `PATH` and `HC_TERMINAL_ID` set (Herdr sets it); without either, it does nothing. It runs in the background, so a closed Herdr window never slows the status line.
+
 **Line 2** — rate limits and context usage:
 ```
 5h 34% (3h 22m)  •  7d 12% (5d 8h)  |  ctx 41% (82k/200k)
