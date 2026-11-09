@@ -108,6 +108,17 @@ if [ -n "$pr_num" ]; then
 fi
 [ -n "$session" ] && line1+="${SEP}${dim}${session}${reset}"
 
+# ── Herdr tab follows the session name ───────────────────────────────────────
+# Only inside a Herdr terminal with herdr-app installed; runs in the background
+# so a slow or closed Herdr window never delays or breaks the status line.
+if [ -n "$session" ] && [ -n "${HC_TERMINAL_ID:-}" ] && command -v herdr-app >/dev/null 2>&1; then
+  (
+    tab=$(herdr-app ls 2>/dev/null | jq -r --arg t "$HC_TERMINAL_ID" --arg n "$session" \
+      'first(.spaces[].tabs[] | select(any(.terminals[]; .terminal == $t)) | select(.name != $n) | .id) // empty' 2>/dev/null)
+    [ -n "$tab" ] && herdr-app "do" tab.rename "$(jq -nc --arg id "$tab" --arg n "$session" '{id: $id, name: $n}')"
+  ) >/dev/null 2>&1 &
+fi
+
 # ── Plugin badges (dynamic) ──────────────────────────────────────────────────
 # Each installed plugin may ship a `*-statusline.sh`. We run it and append its
 # output verbatim, so the badge looks exactly how that plugin's author intended
