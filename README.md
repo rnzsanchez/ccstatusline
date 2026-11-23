@@ -28,10 +28,10 @@ Color coding:
 
 ## Plugin Badges
 
-Line 1 also renders badges from installed Claude Code plugins. Any plugin that ships a `*-statusline.sh` hook gets a small badge at the end of the line, after the session name. The badge is redrawn as `name:mode` in the plugin's own color, without brackets or emoji, after a dim ◆ plugin marker, so `[PLAIN-SPEAK 🧠 CTE]` shows as `◆ plain-speak:cte`:
+Line 1 also renders badges from installed Claude Code plugins. Any plugin that ships a `*-statusline.sh` hook gets a small badge at the end of the line, after the session name. The badge is redrawn as `name:mode` in the plugin's own color, without brackets or emoji, after a dim ⧉ plugin marker, so `[PLAIN-SPEAK 🧠 CTE]` shows as `⧉ plain-speak:cte`:
 
 ```
-Opus 4.8  |  myproject  •  main  •  my-session  •  ◆ plain-speak:cte  •  ◆ ponytail:ultra
+Opus 4.8  |  myproject  •  main  •  my-session  •  ⧉ plain-speak:cte  •  ⧉ ponytail:ultra
 ```
 
 The status line discovers badges dynamically from `~/.claude/plugins/installed_plugins.json` — no plugin names or colors are hardcoded. Each badge keeps its plugin's first color and its gating (a plugin prints nothing when inactive), so installing a badge-capable plugin makes its badge appear with zero edits to the script. Badges render in alphabetical order by plugin name.
