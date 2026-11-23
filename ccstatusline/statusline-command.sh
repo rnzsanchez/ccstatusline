@@ -120,11 +120,17 @@ if [ -n "$session" ] && [ -n "${HC_TERMINAL_ID:-}" ] && command -v herdr-app >/d
 fi
 
 # ── Plugin badges (dynamic) ──────────────────────────────────────────────────
-# Each installed plugin may ship a `*-statusline.sh`. We run it and append its
-# output verbatim, so the badge looks exactly how that plugin's author intended
-# (its own colors, its own gating — it prints nothing when inactive). No plugin
-# names or colors live here; installing a badge-capable plugin makes its badge
-# appear with zero edits to this file.
+# Each installed plugin may ship a `*-statusline.sh` (it prints nothing when
+# inactive). We redraw its output small: "[PLAIN-SPEAK 🧠 CTE]" -> "plain-speak:cte",
+# in the plugin's own first color. No plugin names live here.
+compact_badge() {
+  local raw="$1" color text name mode
+  color=$(printf '%s' "$raw" | grep -oE $'\033\\[[0-9;]*m' | head -1)
+  text=$(printf '%s' "$raw" | LC_ALL=C sed -E $'s/\033\\[[0-9;]*m//g; s/[][]//g' | LC_ALL=C tr -cd 'A-Za-z0-9:_ -' | tr 'A-Z' 'a-z' | tr ':' ' ')
+  read -r name mode <<< "$text"
+  [ -n "$name" ] || return
+  printf '%b' "${color}${name}${mode:+:${mode// /:}}${reset}"
+}
 PLUGIN_REGISTRY="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json"
 if [ -f "$PLUGIN_REGISTRY" ] && command -v jq >/dev/null 2>&1; then
   while IFS= read -r plugin_path; do
@@ -132,7 +138,7 @@ if [ -f "$PLUGIN_REGISTRY" ] && command -v jq >/dev/null 2>&1; then
     sl_script=$(find "$plugin_path" -maxdepth 4 -type f -name '*-statusline.sh' 2>/dev/null | head -1)
     [ -n "$sl_script" ] || continue
     badge_out=$(bash "$sl_script" </dev/null 2>/dev/null)
-    [ -n "$badge_out" ] && line1+="${SEP}${badge_out}"
+    [ -n "$badge_out" ] && line1+="${SEP}$(compact_badge "$badge_out")"
   done < <(jq -r '.plugins | to_entries | sort_by(.key)[] | .value[-1].installPath // empty' "$PLUGIN_REGISTRY" 2>/dev/null)
 fi
 
