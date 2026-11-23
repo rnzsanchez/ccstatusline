@@ -129,7 +129,7 @@ compact_badge() {
   text=$(printf '%s' "$raw" | LC_ALL=C sed -E $'s/\033\\[[0-9;]*m//g; s/[][]//g' | LC_ALL=C tr -cd 'A-Za-z0-9:_ -' | tr 'A-Z' 'a-z' | tr ':' ' ')
   read -r name mode <<< "$text"
   [ -n "$name" ] || return
-  printf '%b' "${dim}⧉${reset}${color}${name}${mode:+:${mode// /:}}${reset}"
+  printf '%b' "${dim}◆${reset} ${color}${name}${mode:+:${mode// /:}}${reset}"
 }
 PLUGIN_REGISTRY="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json"
 if [ -f "$PLUGIN_REGISTRY" ] && command -v jq >/dev/null 2>&1; then
